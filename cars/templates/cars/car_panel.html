@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+
+<div class="container d-flex mt-5" style="width: 70%;">
+    <div class="col">
+        <h1 class="text-center">List of cars</h1>
+        <div class="d-flex justify-content-center">
+            <a href="{% url 'cars:car_create' %}" class="d-block btn btn-primary my-3">Add New</a>
+        </div>
+        <div class="d-flex justify-content-center">
+            <a href="" class="d-block btn btn-primary my-3">Cancel</a>
+            <button id="update-button" class="d-block btn btn-primary my-3">Save</button>
+        </div>
+        <table class="table table-striped mt-5" id="cars">
+            <thead>
+                <tr>
+                    
+                    <th class="text-center" scope="col">Model</th>
+                    <th class="text-center" scope="col">Brand</th>
+                    <th class="text-center" scope="col">Main Color</th>
+                    <th class="text-center" scope="col">Value</th>
+                    <th class="text-center" scope="col">Production Cost</th>
+                    <th class="text-center" scope="col">Trasportation Cost</th>
+                    <th class="text-center" scope="col">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>    
+        
+    </div>
+</div>
+
+{% endblock content %}
+
+{% block scripts %}
+<script>
+    var COLORS;
+    var BRANDS;
+
+    var fill_table = () => {
+        $.ajax({
+            url: '/api/colors/',
+            method: 'GET',
+            success: function(response) {
+                COLORS = response.colors;
+                $.ajax({
+                    url: '/api/brands/',
+                    method: 'GET',
+                    success: function(response) {
+                        BRANDS = response.brands;
+                        $.ajax({
+                            url: '/api/cars/',
+                            method: 'GET',
+                            success: function(response) {
+                                var tbody = $('#cars tbody');
+                                $.each(response.cars, function(index, item) {
+                                    var row = $('<tr>');
+                                    row.append($('<td class="car-id" style="display:none">').text(item.id));
+                                    row.append($('<td>').append($('<input class="model-input">').val(item.model)));
+                                    var brandSelect = $('<select class="brand-select">');
+                                    $.each(BRANDS, function(i, brand) {
+                                        var option = $('<option>').val(brand.id).text(brand.name);
+                                        if (brand.id === item.brand) {
+                                            option.attr('selected', true);
+                                        }
+                                        brandSelect.append(option);
+                                    });
+                                    row.append($('<td>').append(brandSelect));
+                                    var colorSelect = $('<select class="color-select">');
+                                    $.each(COLORS, function(i, color) {
+                                        var option = $('<option>').val(color.tag).text(color.name);
+                                        if (color.tag === item.color) {
+                                            option.attr('selected', true);
+                                        }
+                                        colorSelect.append(option);
+                                    });
+                                    row.append($('<td>').append(colorSelect));
+                                    row.append($('<td>').append($('<input class="value-input">').val(item.value)));
+                                    row.append($('<td>').append($('<input class="production-cost-input">').val(item.production_cost)));
+                                    row.append($('<td>').append($('<input class="transportation-cost-input">').val(item.transportation_cost)));
+                                    row.append($('<td class="total">').text(item.transportation_cost + item.production_cost));
+                                    tbody.append(row);
+                                });
+                            },
+                            error: function(error) {
+                                console.error(error);
+                            }
+                        });
+                    },
+                    error: function(error) {
+                        console.error(error);
+                    }
+                });
+            },
+            error: function(error) {
+                console.error(error);
+            }
+        });
+    };
+
+    var retrieve_data = () => {
+        var data = [];
+        $('#cars tbody tr').each(function() {
+            var row = {};
+            var id = parseInt($(this).find('.car-id').text());
+            var model = $(this).find('.model-input').val();
+            var brand = $(this).find('.brand-select').val();
+            var color = $(this).find('.color-select').val();
+            var value = parseInt($(this).find('.value-input').val());
+            var production_cost = parseInt($(this).find('.production-cost-input').val());
+            var transportation_cost = parseInt($(this).find('.transportation-cost-input').val());
+
+            row.id = id;
+            row.model = model;
+            row.brand = brand;
+            row.color = color;
+            row.value = value;
+            row.production_cost = production_cost;
+            row.transportation_cost = transportation_cost;
+
+            data.push(row);
+        });
+
+        return data;
+    }
+
+    $(document).ready(function() {
+        fill_table();
+
+        $('#cars').on('input', '.production-cost-input, .transportation-cost-input', function() {
+            var row = $(this).closest('tr');
+            var production_cost = parseInt(row.find('.production-cost-input').val());
+            var transportation_cost = parseInt(row.find('.transportation-cost-input').val());
+            var total = row.find('.total');
+
+            total.text(production_cost+transportation_cost);
+        });
+
+        $('#update-button').click(function() {
+            var data = retrieve_data();
+            console.log(data);
+            $.ajax({
+                url: '/api/cars/update/bulk/',
+                method: 'PUT',
+                data: JSON.stringify(data),
+                contentType: 'application/json',
+                success: function(response) {
+                    console.log('PUT request successful');
+                },
+                error: function(error) {
+                    console.log(error);
+                }
+            });
+        });
+    });
+  </script>
+{% endblock scripts %}
